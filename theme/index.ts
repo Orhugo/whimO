@@ -19,7 +19,7 @@ export const darkTheme: MD3Theme = {
     colors: {
         ...MD3DarkTheme.colors,
         primary: '#D0BCFF',
-        secondary: '#CCC2DC',
+        secondary: '#ccc000',
     },
 };
 
