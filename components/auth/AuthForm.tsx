@@ -1,9 +1,9 @@
 import React, {useState} from 'react';
-import {View, StyleSheet, TouchableOpacity} from 'react-native';
-
+import {View, StyleSheet, TouchableOpacity, Alert} from 'react-native';
 import {Text, TextInput, Button, useTheme, Icon} from 'react-native-paper';
-import { authService } from "@services/authService";
+import { useRouter } from 'expo-router';
 
+import { authService } from "@services/authService";
 export default function AuthForm() {
     const {colors} = useTheme();
     const [username, setUsername] = useState("");
@@ -11,40 +11,80 @@ export default function AuthForm() {
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [isRegister, setIsRegister] = useState(true);
+    const [loading, setLoading] = useState(false);
+    const router = useRouter();
+
+    const handleAuth = async () => {
+        if (!email || !password || (isRegister && !username)) {
+            Alert.alert('Error', 'Por favor completa todos los campos requeridos');
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            const { data, error } = isRegister
+                ? await authService.register(username, email, password)
+                : await authService.login(email, password);
+
+            if (error) {
+                Alert.alert('Error', error.message);
+            } else if (isRegister) {
+                Alert.alert(
+                    'Registro exitoso',
+                    'Por favor verifica tu email para confirmar tu cuenta',
+                    [{ text: 'OK', onPress: () => setIsRegister(false) }]
+                );
+            } else {
+                router.replace('/(tabs)');
+            }
+        } catch (error) {
+            Alert.alert('Error', 'Algo salió mal. Intenta de nuevo.');
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <View style={styles.container}>
-            <View style={{alignItems: "center", marginBottom: 16}}>
-                <Icon
-                    source="shopping"
-                    size={170}
-                />
+            <View style={{ alignItems: "center", marginBottom: 32 }}>
+                <Icon source="shopping" size={120} />
+                <Text variant="headlineMedium" style={{ marginTop: 16 }}>
+                    {isRegister ? 'Crear cuenta' : 'Bienvenido'}
+                </Text>
             </View>
+
             <View style={styles.input}>
                 {isRegister && (
                     <TextInput
-                        label="Username"
+                        label="Nombre de usuario"
                         value={username}
                         onChangeText={setUsername}
                         mode="outlined"
-                        left={<TextInput.Icon icon="account-outline"/>}
+                        disabled={loading}
+                        left={<TextInput.Icon icon="account-outline" />}
                     />
-                    )
-                }
+                )}
                 <TextInput
                     label="Email"
                     value={email}
                     onChangeText={setEmail}
                     mode="outlined"
-                    left={<TextInput.Icon icon="email-outline"/>}
+                    disabled={loading}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    left={<TextInput.Icon icon="email-outline" />}
                 />
                 <TextInput
-                    label="Password"
+                    label="Contraseña"
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry={!showPassword}
                     mode="outlined"
-                    left={<TextInput.Icon icon="lock-outline"/>}
+                    disabled={loading}
+                    autoCapitalize="none"
+                    left={<TextInput.Icon icon="lock-outline" />}
                     right={
                         <TextInput.Icon
                             icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -53,48 +93,38 @@ export default function AuthForm() {
                     }
                 />
             </View>
-            <View style={styles.forgotButton}>
-                {!isRegister && (
-                    <TouchableOpacity>
-                        <Text>Forgot password?</Text>
+
+            {!isRegister && (
+                <View style={styles.forgotButton}>
+                    <TouchableOpacity disabled={loading}>
+                        <Text style={{ color: colors.primary }}>
+                            ¿Olvidaste tu contraseña?
+                        </Text>
                     </TouchableOpacity>
-                )}
-            </View>
-            {isRegister ? (
-                <Button
-                    mode="elevated"
-                    buttonColor={colors.primary}
-                    textColor={colors.onPrimary}
-                    onPress={() => console.log('Sign Up')}
-                >
-                    Sign Up
-                </Button>
-            ) : (
-                <Button
-                    mode="elevated"
-                    buttonColor={colors.primary}
-                    textColor={colors.onPrimary}
-                    onPress={() => console.log('Sign I')}
-                >
-                    Sign In
-                </Button>
+                </View>
             )}
+
+            <Button
+                mode="contained"
+                onPress={handleAuth}
+                loading={loading}
+                disabled={loading}
+                style={styles.mainButton}
+            >
+                {isRegister ? 'Crear cuenta' : 'Iniciar sesión'}
+            </Button>
+
             <View style={styles.registerContainer}>
-                {isRegister ? (
-                    <Text style={{color: "#6B7280"}}>
-                        Do you have an account?
+                <Text style={{ color: "#6B7280" }}>
+                    {isRegister ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?'}
+                </Text>
+                <TouchableOpacity
+                    onPress={() => setIsRegister(!isRegister)}
+                    disabled={loading}
+                >
+                    <Text style={[styles.link, { color: colors.primary }]}>
+                        {isRegister ? ' Iniciar sesión' : ' Regístrate'}
                     </Text>
-                ) : (
-                    <Text style={{color: "#6B7280"}}>
-                        You don&#39;t have an account?
-                    </Text>
-                )}
-                <TouchableOpacity onPress={() => setIsRegister(!isRegister)}>
-                    {isRegister ? (
-                        <Text style={styles.link}> Sign In</Text>
-                    ) : (
-                        <Text style={styles.link}> Sign Up</Text>
-                    )}
                 </TouchableOpacity>
             </View>
         </View>
@@ -119,6 +149,9 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "center",
         marginTop: 12,
+    },
+    mainButton: {
+        marginTop: 8,
     },
     link: {
         color: "#D0BCFF",

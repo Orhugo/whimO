@@ -1,79 +1,102 @@
-import { AuthContext } from '@/hooks/use-auth-context'
-import { supabase } from '@lib/supabase'
-import type { Session } from '@supabase/supabase-js'
-import { PropsWithChildren, useEffect, useState } from 'react'
+import { AuthContext } from '@/hooks/use-auth-context';
+import { supabase } from '@lib/supabase';
+import type { Session } from '@supabase/supabase-js';
+import { PropsWithChildren, useEffect, useState } from 'react';
 
 export default function AuthProvider({ children }: PropsWithChildren) {
-    const [session, setSession] = useState<Session | undefined | null>()
-    const [profile, setProfile] = useState<any>()
-    const [isLoading, setIsLoading] = useState<boolean>(true)
+    const [session, setSession] = useState<Session | undefined | null>(undefined);
+    const [profile, setProfile] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
 
-    // Fetch the session once, and subscribe to auth state changes
+    // Obtener sesión inicial y suscribirse a cambios
     useEffect(() => {
+        console.log('[AuthProvider] Initializing...');
+
         const fetchSession = async () => {
-            setIsLoading(true)
+            try {
+                console.log('[AuthProvider] Fetching initial session...');
+                const { data: { session }, error } = await supabase.auth.getSession();
 
-            const {
-                data: { session },
-                error,
-            } = await supabase.auth.getSession()
+                if (error) {
+                    console.error('[AuthProvider] Error fetching session:', error);
+                }
 
-            if (error) {
-                console.error('Error fetching session:', error)
+                console.log('[AuthProvider] Initial session:', session ? 'Found' : 'Not found');
+                setSession(session);
+            } catch (error) {
+                console.error('[AuthProvider] Unexpected error:', error);
+            } finally {
+                setIsLoading(false);
             }
+        };
 
-            setSession(session)
-            setIsLoading(false)
-        }
+        fetchSession();
 
-        fetchSession()
+        // Suscribirse a cambios de autenticación
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            async (event, session) => {
+                console.log('[AuthProvider] Auth state changed:', event, session ? 'Session exists' : 'No session');
+                setSession(session);
+            }
+        );
 
-        const {
-            data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
-            console.log('Auth state changed:', { event: _event, session })
-            setSession(session)
-        })
-
-        // Cleanup subscription on unmount
         return () => {
-            subscription.unsubscribe()
-        }
-    }, [])
+            console.log('[AuthProvider] Cleaning up subscription');
+            subscription.unsubscribe();
+        };
+    }, []);
 
-    // Fetch the profile when the session changes
+    // Obtener perfil cuando cambia la sesión
     useEffect(() => {
         const fetchProfile = async () => {
-            setIsLoading(true)
+            if (!session?.user) {
+                console.log('[AuthProvider] No session, clearing profile');
+                setProfile(null);
+                return;
+            }
 
-            if (session) {
-                const { data } = await supabase
+            try {
+                console.log('[AuthProvider] Fetching profile for user:', session.user.id);
+                const { data, error } = await supabase
                     .from('profiles')
                     .select('*')
                     .eq('id', session.user.id)
-                    .single()
+                    .single();
 
-                setProfile(data)
-            } else {
-                setProfile(null)
+                if (error) {
+                    console.error('[AuthProvider] Error fetching profile:', error.message);
+                    // No bloqueamos si no hay perfil, solo usamos los datos del user
+                    setProfile({ username: session.user.user_metadata?.username });
+                } else {
+                    console.log('[AuthProvider] Profile loaded:', data);
+                    setProfile(data);
+                }
+            } catch (error) {
+                console.error('[AuthProvider] Unexpected error fetching profile:', error);
             }
+        };
 
-            setIsLoading(false)
-        }
+        fetchProfile();
+    }, [session]);
 
-        fetchProfile()
-    }, [session])
+    const isLoggedIn = session !== null && session !== undefined;
+
+    console.log('[AuthProvider] Current state:', {
+        isLoading,
+        isLoggedIn,
+        hasSession: !!session
+    });
 
     return (
         <AuthContext.Provider
             value={{
                 session,
-                isLoading,
                 profile,
-                isLoggedIn: session != undefined,
+                isLoading,
+                isLoggedIn,
             }}
         >
             {children}
         </AuthContext.Provider>
-    )
+    );
 }
