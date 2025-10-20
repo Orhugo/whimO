@@ -2,6 +2,7 @@ import React, {useState} from 'react';
 import {View, StyleSheet, TouchableOpacity} from 'react-native';
 
 import {Text, TextInput, Button, useTheme, Icon} from 'react-native-paper';
+import { authService } from "@services/authService";
 
 export default function AuthForm() {
     const {colors} = useTheme();
@@ -9,24 +10,27 @@ export default function AuthForm() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
-    const [isLogin, setIsLogin] = useState(true);
+    const [isRegister, setIsRegister] = useState(true);
 
     return (
         <View style={styles.container}>
-            <View style={{alignItems: "center", marginBottom: 16, backgroundColor: "red"}}>
+            <View style={{alignItems: "center", marginBottom: 16}}>
                 <Icon
                     source="shopping"
-                    size={200}
+                    size={170}
                 />
             </View>
             <View style={styles.input}>
-                <TextInput
-                    label="Username"
-                    value={username}
-                    onChangeText={setUsername}
-                    mode="outlined"
-                    left={<TextInput.Icon icon="account-outline"/>}
-                />
+                {isRegister && (
+                    <TextInput
+                        label="Username"
+                        value={username}
+                        onChangeText={setUsername}
+                        mode="outlined"
+                        left={<TextInput.Icon icon="account-outline"/>}
+                    />
+                    )
+                }
                 <TextInput
                     label="Email"
                     value={email}
@@ -50,24 +54,47 @@ export default function AuthForm() {
                 />
             </View>
             <View style={styles.forgotButton}>
-                <TouchableOpacity>
-                    <Text>Forgot password?</Text>
-                </TouchableOpacity>
+                {!isRegister && (
+                    <TouchableOpacity>
+                        <Text>Forgot password?</Text>
+                    </TouchableOpacity>
+                )}
             </View>
-            <Button
-                mode="elevated"
-                buttonColor={colors.primary}
-                textColor={colors.onPrimary}
-                onPress={() => console.log('Login')}
-            >
-                Login
-            </Button>
+            {isRegister ? (
+                <Button
+                    mode="elevated"
+                    buttonColor={colors.primary}
+                    textColor={colors.onPrimary}
+                    onPress={() => console.log('Sign Up')}
+                >
+                    Sign Up
+                </Button>
+            ) : (
+                <Button
+                    mode="elevated"
+                    buttonColor={colors.primary}
+                    textColor={colors.onPrimary}
+                    onPress={() => console.log('Sign I')}
+                >
+                    Sign In
+                </Button>
+            )}
             <View style={styles.registerContainer}>
-                <Text style={{color: "#6B7280"}}>
-                    You don&#39;t have an account?
-                </Text>
-                <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
-                    <Text style={styles.link}> Sign Up</Text>
+                {isRegister ? (
+                    <Text style={{color: "#6B7280"}}>
+                        Do you have an account?
+                    </Text>
+                ) : (
+                    <Text style={{color: "#6B7280"}}>
+                        You don&#39;t have an account?
+                    </Text>
+                )}
+                <TouchableOpacity onPress={() => setIsRegister(!isRegister)}>
+                    {isRegister ? (
+                        <Text style={styles.link}> Sign In</Text>
+                    ) : (
+                        <Text style={styles.link}> Sign Up</Text>
+                    )}
                 </TouchableOpacity>
             </View>
         </View>
